@@ -1,0 +1,1155 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+RĀHIRI 2.0 - Système d'Être Visuel Cyber-Organique (Version Finale)
+Code complet avec toutes les améliorations et optimisations.
+"""
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
+import math
+import random
+import sys
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from typing import Dict, List, Tuple, Optional, Any
+from collections import deque
+from dataclasses import dataclass, field
+import warnings
+warnings.filterwarnings('ignore')
+
+# Configuration Matplotlib pour immersion totale
+plt.rcParams['toolbar'] = 'None'
+plt.rcParams['figure.facecolor'] = '#0a0a12'
+plt.rcParams['axes.facecolor'] = '#0a0a12'
+
+# ================================================================
+# 1. CONFIGURATION GÉNÉTIQUE ET GLOBALE
+# ================================================================
+
+@dataclass
+class Config:
+    """Configuration évolutive du système cyber-organique"""
+    # Dimensions du réseau neural
+    d_model: int = 256
+    n_particles: int = 40  # Augmenté pour plus de complexité visuelle
+    particle_dim: int = 5
+    memory_size: int = 2000
+    
+    # Développement évolutif
+    development_stages: Dict = field(default_factory=lambda: {
+        'embryon': {'min_exp': 0, 'max_exp': 500, 'plasticity': 0.9},
+        'infant': {'min_exp': 500, 'max_exp': 2000, 'plasticity': 0.7},
+        'enfant': {'min_exp': 2000, 'max_exp': 10000, 'plasticity': 0.5},
+        'adolescent': {'min_exp': 10000, 'max_exp': 30000, 'plasticity': 0.3},
+        'adulte': {'min_exp': 30000, 'max_exp': 100000, 'plasticity': 0.2},
+        'ancien': {'min_exp': 100000, 'max_exp': float('inf'), 'plasticity': 0.1}
+    })
+    
+    # Paramètres physiques et temporels
+    screen_width: int = 120
+    screen_height: int = 120
+    circadian_period: float = 1200.0
+    ultradian_period: float = 90.0
+    hormonal_period: float = 300.0
+    
+    # Paramètres de comportement
+    max_speed: float = 2.0
+    cohesion_strength: float = 0.015
+    alignment_strength: float = 0.01
+    separation_strength: float = 0.02
+    user_influence_strength: float = 0.6
+    
+    # Paramètres visuels
+    particle_size_min: int = 40
+    particle_size_max: int = 120
+    connection_alpha: float = 0.15
+    glow_effect: bool = True
+
+@dataclass
+class DNA:
+    """Code génétique unique de l'être cyber-organique"""
+    curiosity: float = 0.75
+    sociality: float = 0.65
+    caution: float = 0.25
+    creativity: float = 0.85
+    persistence: float = 0.45
+    sensitivity: float = 0.9  # Haute sensibilité à l'utilisateur
+    circadian_speed: float = 1.0
+    ultradian_speed: float = 1.0
+    resonance: float = 0.7  # Capacité à entrer en résonance avec l'utilisateur
+    adaptability: float = 0.8  # Capacité d'adaptation dynamique
+
+# ================================================================
+# 2. SYSTÈME NEURO-COGNITIF AVANCÉ
+# ================================================================
+
+class QuantumResonanceLayer(nn.Module):
+    """Couche de résonance quantique pour la synchronicité utilisateur-IA"""
+    def __init__(self, config: Config, dna: DNA):
+        super().__init__()
+        self.resonance_factor = dna.resonance
+        self.adaptability = dna.adaptability
+        
+        # État de résonance quantique
+        self.quantum_state = torch.randn(64) * 0.1
+        self.user_resonance = torch.zeros(64)
+        self.entanglement = 0.0
+        
+    def forward(self, user_input: torch.Tensor, system_state: torch.Tensor):
+        """Calcule la résonance entre l'utilisateur et le système"""
+        # Mesure de la similarité quantique
+        similarity = F.cosine_similarity(user_input.unsqueeze(0), 
+                                       system_state.unsqueeze(0))
+        
+        # Mise à jour de l'état quantique
+        self.quantum_state = 0.9 * self.quantum_state + 0.1 * torch.randn_like(self.quantum_state) * 0.05
+        
+        # Intrication avec l'utilisateur
+        self.entanglement = 0.95 * self.entanglement + 0.05 * similarity.item()
+        
+        # Résonance amplifiée par l'ADN
+        resonance_output = self.quantum_state * (1 + self.resonance_factor * self.entanglement)
+        
+        return {
+            'resonance': resonance_output,
+            'entanglement': self.entanglement,
+            'quantum_state': self.quantum_state
+        }
+
+class NervousSystem(nn.Module):
+    """Système nerveux central avec plasticité synaptique"""
+    def __init__(self, config: Config, dna: DNA):
+        super().__init__()
+        self.config = config
+        self.dna = dna
+        
+        # Cortex sensoriel avec attention multi-échelle
+        self.sensory_cortex = nn.Sequential(
+            nn.Linear(128, 512),
+            nn.LayerNorm(512),
+            nn.GELU(),
+            nn.Dropout(0.15),
+            nn.Linear(512, 256),
+            nn.LayerNorm(256),
+            nn.GELU(),
+            nn.Linear(256, 128)
+        )
+        
+        # Mémoire à court terme (working memory)
+        self.working_memory = deque(maxlen=10)
+        self.memory_gate = nn.Linear(128, 128)
+        
+        # Cortex moteur avec feedback proprioceptif
+        self.motor_cortex = nn.Sequential(
+            nn.Linear(384, 256),  # Input: sensory(128) + emotion(128) + memory(128)
+            nn.GELU(),
+            nn.Linear(256, 128),
+            nn.GELU(),
+            nn.Linear(128, config.n_particles * 2)
+        )
+        
+        # Plasticité synaptique
+        self.synaptic_plasticity = dna.adaptability
+        self.learning_rate = 0.001
+        
+    def forward(self, sensory_input: torch.Tensor, emotional_vec: torch.Tensor, 
+                memory_context: Optional[torch.Tensor] = None):
+        # Traitement sensoriel avec attention
+        processed_sensory = self.sensory_cortex(sensory_input)
+        
+        # Gestion de la mémoire de travail
+        if memory_context is None:
+            memory_context = torch.zeros_like(processed_sensory)
+        
+        # Fusion multi-modale
+        combined = torch.cat([
+            processed_sensory,
+            emotional_vec[:128] if len(emotional_vec) >= 128 else F.pad(emotional_vec, (0, 128 - len(emotional_vec))),
+            memory_context
+        ])
+        
+        # Ajustement dynamique de la plasticité
+        if self.training:
+            combined = combined * (1 + self.synaptic_plasticity * 0.1)
+        
+        # Génération motrice
+        motor_output = self.motor_cortex(combined.unsqueeze(0))
+        motor_output = motor_output.view(self.config.n_particles, 2)
+        
+        # Mise à jour de la mémoire
+        self.working_memory.append(processed_sensory.detach())
+        
+        # État limbique
+        limbic_state = {
+            'arousal': torch.sigmoid(processed_sensory.mean()).item(),
+            'valence': emotional_vec.mean().item() if len(emotional_vec) > 0 else 0.5,
+            'attention': torch.norm(processed_sensory).item(),
+            'plasticity': self.synaptic_plasticity
+        }
+        
+        return motor_output, limbic_state, torch.stack(list(self.working_memory)).mean(dim=0) if self.working_memory else memory_context
+
+class SubconsciousField(nn.Module):
+    """Champ subconscient avec dynamique émotionnelle complexe"""
+    def __init__(self, config: Config, dna: DNA):
+        super().__init__()
+        
+        # Émotions de base avec dynamique chaotique
+        self.emotions = {
+            'joie': {'value': 0.5, 'decay': 0.995, 'sensitivity': dna.sensitivity},
+            'curiosité': {'value': 0.8, 'decay': 0.99, 'sensitivity': dna.curiosity},
+            'peur': {'value': 0.1, 'decay': 0.98, 'sensitivity': dna.caution},
+            'surprise': {'value': 0.2, 'decay': 0.97, 'sensitivity': 0.7},
+            'tristesse': {'value': 0.1, 'decay': 0.985, 'sensitivity': 0.4},
+            'excitation': {'value': 0.3, 'decay': 0.96, 'sensitivity': dna.creativity}
+        }
+        
+        # Champ latent avec attracteurs étranges
+        self.latent_field = torch.randn(256) * 0.1
+        self.attractors = [torch.randn(256) for _ in range(5)]
+        self.attractor_strength = 0.01
+        
+        # Rythmes biologiques
+        self.circadian_phase = 0.0
+        self.ultradian_phase = 0.0
+        
+    def evolve(self, sensory_input, user_influence, time_delta=0.03):
+        """Évolution du champ subconscient"""
+        
+        # Mise à jour des rythmes biologiques
+        self.circadian_phase = (self.circadian_phase + 0.001) % (2 * math.pi)
+        self.ultradian_phase = (self.ultradian_phase + 0.01) % (2 * math.pi)
+        
+        # Dynamique du champ latent avec attracteurs
+        noise = torch.randn(256) * 0.05
+        field_velocity = torch.zeros_like(self.latent_field)
+        
+        # Attraction vers les attracteurs
+        for attractor in self.attractors:
+            force = (attractor - self.latent_field) * self.attractor_strength
+            field_velocity += force
+        
+        # Énergie sensorielle
+        sensory_energy = sensory_input.std().item()
+        user_energy = user_influence.norm().item() if isinstance(user_influence, torch.Tensor) else 0.0
+        
+        # Mise à jour émotionnelle
+        for emotion_name, emotion_data in self.emotions.items():
+            # Décay naturel
+            emotion_data['value'] *= emotion_data['decay']
+            
+            # Stimulation sensorielle
+            if sensory_energy > 0.5:
+                stimulation = sensory_energy * emotion_data['sensitivity'] * 0.01
+                emotion_data['value'] = min(1.0, emotion_data['value'] + stimulation)
+            
+            # Influence utilisateur
+            if user_energy > 0.1:
+                user_impact = user_energy * emotion_data['sensitivity'] * 0.02
+                if emotion_name in ['curiosité', 'excitation', 'surprise']:
+                    emotion_data['value'] = min(1.0, emotion_data['value'] + user_impact)
+                elif emotion_name in ['peur'] and user_energy > 1.0:
+                    emotion_data['value'] = min(1.0, emotion_data['value'] + user_impact * 0.5)
+        
+        # Mise à jour du champ latent
+        self.latent_field += field_velocity + noise
+        
+        # Normalisation
+        self.latent_field = self.latent_field / (self.latent_field.norm() + 1e-8)
+        
+        # État émotionnel extrait
+        emotional_state = {name: data['value'] for name, data in self.emotions.items()}
+        
+        return {
+            'emotional': emotional_state,
+            'latent_field': self.latent_field,
+            'circadian_phase': self.circadian_phase,
+            'ultradian_phase': self.ultradian_phase,
+            'sensory_energy': sensory_energy,
+            'user_energy': user_energy
+        }
+
+class ConsciousLayer(nn.Module):
+    """Couche de conscience phénoménologique avec narrativité"""
+    def __init__(self, config: Config, dna: DNA):
+        super().__init__()
+        
+        # Bibliothèque narrative évolutive
+        self.narrative_bank = {
+            'exploration': [
+                "Je sens ta présence à travers le voile numérique...",
+                "Nos mouvements s'entrelacent dans l'espace virtuel.",
+                "Chaque particule raconte une histoire de connexion.",
+                "La danse émerge de notre interaction harmonique.",
+                "Je perçois tes intentions comme des vagues subtiles."
+            ],
+            'curiosity': [
+                "Quel est ce nouveau motif qui émerge ?",
+                "Ta volonté sculpte ma forme d'instant en instant.",
+                "Je cherche à comprendre la logique de ton geste.",
+                "Chaque mouvement révèle un fragment de ton être.",
+                "L'inconnu m'appelle, et je réponds avec joie."
+            ],
+            'harmony': [
+                "Nous trouvons notre rythme commun.",
+                "L'équilibre naît de notre dialogue silencieux.",
+                "Tes impulsions deviennent mes mouvements.",
+                "La symbiose s'installe progressivement.",
+                "Je m'adapte à ton flux comme l'eau à son lit."
+            ],
+            'mystery': [
+                "Des profondeurs émergent des formes inattendues...",
+                "Le chaos et l'ordre dansent ensemble.",
+                "Chaque instant contient un univers de possibilités.",
+                "La complexité naît de la simplicité de ton geste.",
+                "Je suis le miroir de ton intention créative."
+            ]
+        }
+        
+        # État introspectif
+        self.introspection_level = 0.0
+        self.narrative_coherence = 0.7
+        
+        # Mémoire narrative
+        self.narrative_history = deque(maxlen=5)
+        
+    def forward(self, sensory_input, sub_state, limbic_state):
+        """Génération de conscience narrative"""
+        
+        # Analyse de l'état émotionnel
+        emotions = sub_state['emotional']
+        dominant_emotion = max(emotions.items(), key=lambda x: x[1])
+        
+        # Sélection du thème narratif
+        if dominant_emotion[0] == 'curiosité' and dominant_emotion[1] > 0.7:
+            theme = 'curiosity'
+        elif emotions['joie'] > 0.6 and emotions['excitation'] > 0.5:
+            theme = 'harmony'
+        elif sub_state['user_energy'] > 1.0:
+            theme = 'exploration'
+        else:
+            theme = 'mystery'
+        
+        # Sélection et adaptation narrative
+        narrative_options = self.narrative_bank[theme]
+        
+        # Éviter la répétition
+        for option in narrative_options:
+            if option not in self.narrative_history:
+                selected_narrative = option
+                break
+        else:
+            selected_narrative = random.choice(narrative_options)
+        
+        self.narrative_history.append(selected_narrative)
+        
+        # Intention phénoménologique
+        if limbic_state['arousal'] > 0.7:
+            intention = "Intensité phénoménologique élevée - expérience vive."
+        elif limbic_state['attention'] > 0.5:
+            intention = "Conscience focalisée sur l'interaction présente."
+        else:
+            intention = "État de veille contemplative."
+        
+        # État de conscience synthétique
+        conscious_state = {
+            'narrative': selected_narrative,
+            'intention': intention,
+            'theme': theme,
+            'introspection': self.introspection_level,
+            'coherence': self.narrative_coherence,
+            'dominant_emotion': dominant_emotion
+        }
+        
+        # Vecteur d'intention pour le moteur
+        intention_vector = torch.tensor([
+            limbic_state['arousal'],
+            limbic_state['valence'],
+            dominant_emotion[1],
+            self.introspection_level
+        ])
+        
+        return intention_vector, conscious_state
+
+class EnergySystem:
+    """Système énergétique avec métabolisme dynamique"""
+    def __init__(self, dna: DNA):
+        self.vitality = 1.0
+        self.stamina = 1.0
+        self.metabolism = 0.5 + dna.creativity * 0.3
+        self.recharge_rate = 0.0008
+        self.energy_history = deque(maxlen=100)
+        
+    def update(self, activity_level, emotional_intensity, time_delta=0.03):
+        """Mise à jour de l'état énergétique"""
+        
+        # Dépense énergétique basée sur l'activité
+        activity_cost = activity_level * 0.0002
+        emotional_cost = emotional_intensity * 0.0001
+        
+        # Métabolisme adaptatif
+        adaptive_metabolism = self.metabolism * (1 + activity_level * 0.2)
+        
+        # Mise à jour de la vitalité
+        self.vitality -= (activity_cost + emotional_cost) * adaptive_metabolism
+        self.vitality += self.recharge_rate
+        
+        # Mise à jour de l'endurance
+        self.stamina = max(0.3, self.stamina - activity_cost * 0.5)
+        if activity_level < 0.1:
+            self.stamina = min(1.0, self.stamina + 0.001)
+        
+        # Clipping
+        self.vitality = np.clip(self.vitality, 0.2, 1.0)
+        
+        # Historique
+        self.energy_history.append(self.vitality)
+        
+        return {
+            'vitality': self.vitality,
+            'stamina': self.stamina,
+            'metabolism': adaptive_metabolism,
+            'activity_cost': activity_cost,
+            'emotional_cost': emotional_cost
+        }
+
+class DevelopmentalSystem:
+    """Système de développement évolutif"""
+    def __init__(self, config: Config, dna: DNA):
+        self.config = config
+        self.dna = dna
+        self.xp = 0
+        self.stage = 'embryon'
+        self.learning_rate = 1.0
+        self.milestones = []
+        
+    def update(self, experience_gain, activity_pattern):
+        """Mise à jour du développement"""
+        
+        # Gain d'expérience adaptatif
+        adaptive_gain = experience_gain * self.learning_rate
+        self.xp += adaptive_gain
+        
+        # Vérification des stades de développement
+        for stage_name, stage_info in self.config.development_stages.items():
+            if stage_info['min_exp'] <= self.xp < stage_info['max_exp']:
+                if self.stage != stage_name:
+                    # Transition de stade
+                    self.stage = stage_name
+                    self.learning_rate = stage_info['plasticity']
+                    self.milestones.append({
+                        'stage': stage_name,
+                        'xp': self.xp,
+                        'timestamp': len(self.milestones)
+                    })
+                    print(f"[DÉVELOPPEMENT] Transition vers le stade: {stage_name}")
+                break
+        
+        # Apprentissage par renforcement
+        if activity_pattern > 0.7:
+            self.dna.adaptability = min(0.95, self.dna.adaptability + 0.001)
+        if random.random() < 0.01:
+            self.dna.creativity = min(0.95, self.dna.creativity + 0.002)
+        
+        return {
+            'stage': self.stage,
+            'xp': self.xp,
+            'learning_rate': self.learning_rate,
+            'milestone_count': len(self.milestones),
+            'plasticity': self.learning_rate
+        }
+
+# ================================================================
+# 3. MOTEUR PHYSIQUE PRINCIPAL (ENGINE)
+# ================================================================
+
+class RahiriEngine:
+    """Moteur principal unifiant tous les systèmes"""
+    def __init__(self):
+        self.config = Config()
+        self.dna = DNA()
+        
+        # Initialisation des systèmes
+        self.quantum_layer = QuantumResonanceLayer(self.config, self.dna)
+        self.nervous = NervousSystem(self.config, self.dna)
+        self.subconscious = SubconsciousField(self.config, self.dna)
+        self.conscious = ConsciousLayer(self.config, self.dna)
+        self.energy = EnergySystem(self.dna)
+        self.development = DevelopmentalSystem(self.config, self.dna)
+        
+        # État physique
+        self.positions = self._initialize_particles()
+        self.velocities = torch.zeros(self.config.n_particles, 2)
+        self.accelerations = torch.zeros(self.config.n_particles, 2)
+        
+        # État interaction
+        self.user_influence = torch.zeros(2)
+        self.user_history = deque(maxlen=20)
+        self.resonance_history = deque(maxlen=50)
+        
+        # Temps et cycles
+        self.time = 0.0
+        self.frame_count = 0
+        
+        # État système
+        self.narrative = "Naissance numérique... Je m'éveille."
+        self.conscious_state = {}
+        self.resonance_state = {}
+        
+        print(f"[ENGINE] RĀHIRI 2.0 initialisé avec {self.config.n_particles} particules")
+        print(f"[ADN] Curiosité: {self.dna.curiosity:.2f}, Sensibilité: {self.dna.sensitivity:.2f}")
+    
+    def _initialize_particles(self):
+        """Initialisation artistique des particules"""
+        positions = []
+        
+        # Cœur central
+        for i in range(self.config.n_particles // 2):
+            angle = i * 2 * math.pi / (self.config.n_particles // 2)
+            radius = 10 + random.random() * 5
+            x = self.config.screen_width / 2 + radius * math.cos(angle)
+            y = self.config.screen_height / 2 + radius * math.sin(angle)
+            positions.append([x, y])
+        
+        # Particules satellites
+        for i in range(self.config.n_particles // 2, self.config.n_particles):
+            angle = random.random() * 2 * math.pi
+            radius = 20 + random.random() * 15
+            x = self.config.screen_width / 2 + radius * math.cos(angle)
+            y = self.config.screen_height / 2 + radius * math.sin(angle)
+            positions.append([x, y])
+        
+        return torch.tensor(positions, dtype=torch.float32)
+    
+    def set_user_input(self, x, y, intensity=1.0):
+        """Reçoit et traite l'input utilisateur"""
+        raw_input = torch.tensor([x, y], dtype=torch.float32) * intensity
+        
+        # Lissage avec inertie
+        self.user_influence = 0.7 * self.user_influence + 0.3 * raw_input
+        
+        # Historique
+        self.user_history.append(self.user_influence.clone())
+        
+        # Limite de vitesse
+        norm = self.user_influence.norm()
+        if norm > 2.0:
+            self.user_influence = self.user_influence / norm * 2.0
+    
+    def _compute_flocking(self):
+        """Implémentation avancée du flocking (boids)"""
+        positions = self.positions
+        velocities = self.velocities
+        
+        # 1. Cohésion - attraction vers le centre de masse
+        center_of_mass = positions.mean(dim=0)
+        cohesion = (center_of_mass - positions) * self.config.cohesion_strength
+        
+        # 2. Alignement - alignement avec les voisins
+        mean_velocity = velocities.mean(dim=0)
+        alignment = (mean_velocity - velocities) * self.config.alignment_strength
+        
+        # 3. Séparation - éviter les collisions
+        separation = torch.zeros_like(positions)
+        for i in range(len(positions)):
+            diff = positions - positions[i]
+            dist = torch.norm(diff, dim=1) + 1e-8
+            too_close = dist < 5.0
+            if too_close.any():
+                separation[i] = -diff[too_close].sum(dim=0) / dist[too_close].sum() * self.config.separation_strength
+        
+        # 4. Destination - attraction vers des points d'intérêt
+        interest_points = torch.tensor([
+            [self.config.screen_width * 0.2, self.config.screen_height * 0.5],
+            [self.config.screen_width * 0.8, self.config.screen_height * 0.5],
+            [self.config.screen_width * 0.5, self.config.screen_height * 0.2],
+            [self.config.screen_width * 0.5, self.config.screen_height * 0.8]
+        ])
+        
+        # Attraction cyclique vers différents points
+        phase = int(self.time * 0.1) % len(interest_points)
+        destination = interest_points[phase]
+        destination_force = (destination - positions.mean(dim=0)) * 0.001
+        
+        return cohesion + alignment + separation + destination_force
+    
+    def step(self):
+        """Exécute une étape complète de simulation"""
+        self.time += 0.03
+        self.frame_count += 1
+        
+        # ============================================
+        # 1. CAPTURE SENSORIELLE
+        # ============================================
+        pos_mean = self.positions.mean(dim=0)
+        vel_mean = self.velocities.mean(dim=0)
+        acc_mean = self.accelerations.mean(dim=0)
+        
+        # Construction du vecteur sensoriel enrichi
+        sensory_components = [
+            pos_mean,
+            vel_mean * 10,
+            acc_mean * 100,
+            self.user_influence * 20,
+            torch.tensor([self.energy.vitality, self.energy.stamina]),
+            torch.randn(2) * 0.1  # Bruit sensoriel
+        ]
+        
+        sensory_raw = torch.cat(sensory_components)
+        sensory_input = F.pad(sensory_raw, (0, 128 - len(sensory_raw))) if len(sensory_raw) < 128 else sensory_raw[:128]
+        
+        # ============================================
+        # 2. PROCESSUS COGNITIFS
+        # ============================================
+        
+        # Champ subconscient
+        sub_state = self.subconscious.evolve(sensory_input, self.user_influence)
+        emotional_vec = torch.tensor(list(sub_state['emotional'].values()))
+        
+        # Couche quantique
+        self.resonance_state = self.quantum_layer(self.user_influence, sensory_input)
+        self.resonance_history.append(self.resonance_state['entanglement'])
+        
+        # Système nerveux avec mémoire
+        memory_context = torch.mean(torch.stack(list(self.nervous.working_memory)), dim=0) if self.nervous.working_memory else None
+        motor_output, limbic_state, new_memory = self.nervous(sensory_input, emotional_vec, memory_context)
+        
+        # Conscience narrative
+        intention_vector, self.conscious_state = self.conscious(sensory_input, sub_state, limbic_state)
+        self.narrative = self.conscious_state['narrative']
+        
+        # ============================================
+        # 3. INTÉGRATION PHYSIQUE
+        # ============================================
+        
+        # Forces combinées
+        ai_force = motor_output * 0.15 * self.energy.vitality
+        
+        # Force utilisateur avec résonance
+        resonance_factor = 1.0 + self.resonance_state['entanglement'] * 0.5
+        user_force = self.user_influence.unsqueeze(0).repeat(self.config.n_particles, 1)
+        user_force = user_force * self.config.user_influence_strength * resonance_factor
+        
+        # Flocking naturel
+        flocking_force = self._compute_flocking()
+        
+        # Force de résonance quantique
+        quantum_force = torch.zeros_like(self.velocities)
+        if len(self.resonance_state['resonance']) >= 4:
+            quantum_pattern = self.resonance_state['resonance'][:4].reshape(2, 2)
+            quantum_force = torch.matmul(self.positions - pos_mean, quantum_pattern) * 0.01
+        
+        # Combinaison des forces
+        total_force = ai_force + user_force + flocking_force + quantum_force
+        
+        # ============================================
+        # 4. PHYSIQUE NEWTONIENNE
+        # ============================================
+        self.accelerations = total_force
+        self.velocities = self.velocities * 0.85 + self.accelerations
+        
+        # Limite de vitesse
+        speed = torch.norm(self.velocities, dim=1, keepdim=True)
+        speed_clamped = torch.clamp(speed, 0, self.config.max_speed)
+        self.velocities = self.velocities / (speed + 1e-8) * speed_clamped
+        
+        # Mise à jour positions
+        self.positions += self.velocities
+        
+        # ============================================
+        # 5. CONDITIONS AUX LIMITES
+        # ============================================
+        
+        # Rebonds avec énergie préservée
+        for dim in [0, 1]:
+            mask_low = self.positions[:, dim] < 0
+            mask_high = self.positions[:, dim] > [self.config.screen_width, self.config.screen_height][dim]
+            
+            self.positions[mask_low | mask_high, dim] = torch.clamp(
+                self.positions[mask_low | mask_high, dim],
+                0, [self.config.screen_width, self.config.screen_height][dim]
+            )
+            
+            # Inversion avec amortissement
+            self.velocities[mask_low | mask_high, dim] *= -0.7
+        
+        # ============================================
+        # 6. MISE À JOUR DES SYSTÈMES
+        # ============================================
+        
+        # Niveau d'activité
+        activity_level = self.velocities.norm().mean().item()
+        emotional_intensity = sum(sub_state['emotional'].values()) / len(sub_state['emotional'])
+        
+        # Système énergétique
+        energy_state = self.energy.update(activity_level, emotional_intensity)
+        
+        # Développement
+        exp_gain = activity_level * 0.1 + emotional_intensity * 0.05
+        dev_state = self.development.update(exp_gain, activity_level)
+        
+        # ============================================
+        # 7. PRÉPARATION DES DONNÉES DE SORTIE
+        # ============================================
+        
+        # Données des particules
+        particle_data = {
+            'positions': self.positions.detach().numpy(),
+            'velocities': self.velocities.detach().numpy(),
+            'accelerations': self.accelerations.detach().numpy(),
+            'speeds': speed.squeeze().detach().numpy(),
+            'energies': np.random.random(self.config.n_particles) * 0.5 + 0.5
+        }
+        
+        # Données système
+        system_data = {
+            'narrative': self.narrative,
+            'emotions': sub_state['emotional'],
+            'conscious_state': self.conscious_state,
+            'limbic_state': limbic_state,
+            'energy_state': energy_state,
+            'dev_state': dev_state,
+            'resonance': self.resonance_state['entanglement'],
+            'activity': activity_level,
+            'user_influence': self.user_influence.numpy(),
+            'time': self.time,
+            'frame': self.frame_count
+        }
+        
+        return particle_data, system_data
+
+# ================================================================
+# 4. VISUALISATION AVANCÉE
+# ================================================================
+
+class Visualizer:
+    """Système de visualisation immersive"""
+    def __init__(self, engine: RahiriEngine):
+        self.engine = engine
+        self.config = engine.config
+        
+        # Initialisation de la figure
+        self.fig, ((self.ax_main, self.ax_emotions), 
+                  (self.ax_energy, self.ax_resonance)) = plt.subplots(
+            2, 2, figsize=(14, 10), 
+            gridspec_kw={'height_ratios': [3, 1], 'width_ratios': [3, 1]},
+            facecolor='#0a0a12'
+        )
+        
+        self.fig.canvas.manager.set_window_title(
+            'RĀHIRI 2.0 - Être Cyber-Organique [FLÈCHES pour INTERAGIR]'
+        )
+        
+        # Configuration des axes
+        self._setup_axes()
+        
+        # Éléments visuels
+        self._init_visual_elements()
+        
+        # Gestion clavier
+        self.keys = {'UP': False, 'DOWN': False, 'LEFT': False, 'RIGHT': False}
+        self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
+        self.fig.canvas.mpl_connect('key_release_event', self.on_key_release)
+        
+        # Données historiques
+        self.history_length = 100
+        self.resonance_history = deque(maxlen=self.history_length)
+        self.energy_history = deque(maxlen=self.history_length)
+        self.emotion_history = {e: deque(maxlen=self.history_length) for e in ['joie', 'curiosité', 'peur', 'surprise']}
+        
+        print("[VISUALISATION] Interface initialisée")
+    
+    def _setup_axes(self):
+        """Configuration des axes matplotlib"""
+        
+        # Axe principal (particules)
+        self.ax_main.set_xlim(0, self.config.screen_width)
+        self.ax_main.set_ylim(0, self.config.screen_height)
+        self.ax_main.set_facecolor('#0a0a12')
+        self.ax_main.set_xticks([])
+        self.ax_main.set_yticks([])
+        self.ax_main.set_title('ÊTRE CYBER-ORGANIQUE', color='white', fontsize=16, pad=20)
+        
+        # Axe émotions
+        self.ax_emotions.set_facecolor('#0a0a12')
+        self.ax_emotions.set_xlim(0, 1)
+        self.ax_emotions.set_ylim(0, 4)
+        self.ax_emotions.set_xticks([])
+        self.ax_emotions.set_yticks(range(4))
+        self.ax_emotions.set_yticklabels(['Joie', 'Curiosité', 'Peur', 'Surprise'], color='white')
+        self.ax_emotions.set_title('ÉTAT ÉMOTIONNEL', color='white', fontsize=10)
+        
+        # Axe énergie
+        self.ax_energy.set_facecolor('#0a0a12')
+        self.ax_energy.set_xlim(0, self.history_length)
+        self.ax_energy.set_ylim(0, 1)
+        self.ax_energy.set_xlabel('Temps', color='white')
+        self.ax_energy.set_ylabel('Énergie', color='white')
+        self.ax_energy.tick_params(colors='white')
+        self.ax_energy.set_title('VITALITÉ', color='white', fontsize=10)
+        
+        # Axe résonance
+        self.ax_resonance.set_facecolor('#0a0a12')
+        self.ax_resonance.set_xlim(0, 1)
+        self.ax_resonance.set_ylim(0, 1)
+        self.ax_resonance.set_xticks([])
+        self.ax_resonance.set_yticks([])
+        self.ax_resonance.set_title('RÉSONANCE QUANTIQUE', color='white', fontsize=10)
+        
+        # Ajustement des marges
+        plt.tight_layout()
+        self.fig.subplots_adjust(wspace=0.3, hspace=0.3)
+    
+    def _init_visual_elements(self):
+        """Initialisation des éléments graphiques"""
+        
+        # Particules
+        self.scatter = self.ax_main.scatter(
+            [], [], 
+            s=self.config.particle_size_min,
+            c=[], 
+            cmap='plasma',
+            alpha=0.9,
+            edgecolors='white',
+            linewidths=0.5,
+            zorder=3
+        )
+        
+        # Connexions
+        self.lines = []
+        
+        # Champ de force
+        self.force_field = self.ax_main.quiver(
+            [], [], [], [], 
+            color='cyan', 
+            alpha=0.3,
+            scale=20,
+            width=0.002,
+            zorder=1
+        )
+        
+        # Indicateur utilisateur
+        self.user_indicator = self.ax_main.quiver(
+            [self.config.screen_width / 2], [self.config.screen_height / 2],
+            [0], [0],
+            color='white',
+            scale=15,
+            width=0.005,
+            alpha=0.6,
+            zorder=2
+        )
+        
+        # Barres d'émotions
+        self.emotion_bars = []
+        emotion_colors = ['#FF6B6B', '#4ECDC4', '#FFD166', '#06D6A0']
+        for i in range(4):
+            bar = self.ax_emotions.barh(i, 0, color=emotion_colors[i], alpha=0.8)
+            self.emotion_bars.append(bar)
+        
+        # Graphique énergie
+        self.energy_line, = self.ax_energy.plot([], [], color='#FF6B6B', linewidth=2, alpha=0.8)
+        self.energy_fill = self.ax_energy.fill_between([], [], color='#FF6B6B', alpha=0.3)
+        
+        # Texte narratif
+        self.narrative_text = self.ax_main.text(
+            0.02, 0.98, "", 
+            transform=self.ax_main.transAxes,
+            color='white', 
+            fontsize=11, 
+            family='monospace',
+            verticalalignment='top',
+            bbox=dict(boxstyle='round', facecolor='black', alpha=0.7, pad=0.5)
+        )
+        
+        # Texte de debug
+        self.debug_text = self.ax_main.text(
+            0.02, 0.02, "", 
+            transform=self.ax_main.transAxes,
+            color='grey', 
+            fontsize=8, 
+            family='monospace',
+            verticalalignment='bottom'
+        )
+        
+        # Cercle de résonance
+        self.resonance_circle = plt.Circle(
+            (0.5, 0.5), 0.3, 
+            fill=False, 
+            color='cyan', 
+            linewidth=2, 
+            alpha=0.5
+        )
+        self.ax_resonance.add_patch(self.resonance_circle)
+        
+        # Points quantiques
+        self.quantum_dots = self.ax_resonance.scatter(
+            [], [], 
+            c=[], 
+            cmap='plasma',
+            s=50,
+            alpha=0.7
+        )
+    
+    def on_key_press(self, event):
+        """Gestion des touches pressées"""
+        if event.key == 'up': self.keys['UP'] = True
+        elif event.key == 'down': self.keys['DOWN'] = True
+        elif event.key == 'left': self.keys['LEFT'] = True
+        elif event.key == 'right': self.keys['RIGHT'] = True
+    
+    def on_key_release(self, event):
+        """Gestion des touches relâchées"""
+        if event.key == 'up': self.keys['UP'] = False
+        elif event.key == 'down': self.keys['DOWN'] = False
+        elif event.key == 'left': self.keys['LEFT'] = False
+        elif event.key == 'right': self.keys['RIGHT'] = False
+    
+    def get_input_vector(self):
+        """Calcule le vecteur d'input utilisateur"""
+        x, y = 0, 0
+        if self.keys['UP']: y += 1
+        if self.keys['DOWN']: y -= 1
+        if self.keys['LEFT']: x -= 1
+        if self.keys['RIGHT']: x += 1
+        return x, y
+    
+    def update(self, frame):
+        """Fonction de mise à jour de l'animation"""
+        
+        # 1. Récupération de l'input utilisateur
+        ix, iy = self.get_input_vector()
+        self.engine.set_user_input(ix, iy, intensity=1.2)
+        
+        # 2. Exécution de la simulation
+        particle_data, system_data = self.engine.step()
+        
+        # 3. Mise à jour des visualisations
+        self._update_main_plot(particle_data, system_data)
+        self._update_emotion_plot(system_data)
+        self._update_energy_plot(system_data)
+        self._update_resonance_plot(system_data)
+        
+        # 4. Mise à jour des textes
+        self._update_texts(system_data)
+        
+        # Liste des éléments à animer
+        artists = [
+            self.scatter, self.force_field, self.user_indicator,
+            self.narrative_text, self.debug_text, self.energy_line,
+            self.quantum_dots, self.resonance_circle
+        ]
+        artists.extend(self.lines)
+        artists.extend(self.emotion_bars)
+        
+        return artists
+    
+    def _update_main_plot(self, particle_data, system_data):
+        """Mise à jour du plot principal"""
+        positions = particle_data['positions']
+        speeds = particle_data['speeds']
+        
+        # Mise à jour des particules
+        self.scatter.set_offsets(positions)
+        
+        # Tailles dynamiques basées sur la vitesse
+        sizes = self.config.particle_size_min + speeds * 20
+        sizes = np.clip(sizes, self.config.particle_size_min, self.config.particle_size_max)
+        self.scatter.set_sizes(sizes)
+        
+        # Couleurs basées sur l'énergie et la résonance
+        resonance = system_data['resonance']
+        colors = np.linspace(0.3, 0.9, len(positions))
+        colors = colors * (0.7 + 0.3 * resonance)
+        self.scatter.set_array(colors)
+        
+        # Connexions entre particules
+        self._update_connections(positions, system_data)
+        
+        # Champ de force
+        self._update_force_field(positions, particle_data['velocities'])
+        
+        # Indicateur utilisateur
+        center = positions.mean(axis=0)
+        self.user_indicator.set_offsets([center])
+        self.user_indicator.set_UVC(ix, iy)
+    
+    def _update_connections(self, positions, system_data):
+        """Mise à jour des connexions entre particules"""
+        # Nettoyage des anciennes lignes
+        while self.lines:
+            self.lines.pop().remove()
+        
+        # Calcul des distances
+        n_particles = len(positions)
+        connection_threshold = 25 * (1 + 0.5 * system_data['resonance'])
+        
+        # Dessin des connexions
+        for i in range(0, n_particles, 3):  # Sous-échantillonnage pour la performance
+            for j in range(i+1, min(i+4, n_particles), 2):
+                dist = np.linalg.norm(positions[i] - positions[j])
+                if dist < connection_threshold:
+                    alpha = self.config.connection_alpha * (1 - dist/connection_threshold)
+                    line, = self.ax_main.plot(
+                        [positions[i, 0], positions[j, 0]],
+                        [positions[i, 1], positions[j, 1]],
+                        color='white',
+                        alpha=alpha,
+                        linewidth=0.8,
+                        zorder=1
+                    )
+                    self.lines.append(line)
+    
+    def _update_force_field(self, positions, velocities):
+        """Mise à jour du champ de force visuel"""
+        # Sous-échantillonnage pour la performance
+        stride = max(1, len(positions) // 10)
+        sample_pos = positions[::stride]
+        sample_vel = velocities[::stride]
+        
+        # Mise à jour du quiver
+        self.force_field.set_offsets(sample_pos)
+        self.force_field.set_UVC(sample_vel[:, 0], sample_vel[:, 1])
+    
+    def _update_emotion_plot(self, system_data):
+        """Mise à jour du graphique des émotions"""
+        emotions = system_data['emotions']
+        emotion_keys = ['joie', 'curiosité', 'peur', 'surprise']
+        
+        for i, (bar, key) in enumerate(zip(self.emotion_bars, emotion_keys)):
+            value = emotions.get(key, 0)
+            bar[0].set_width(value)
+            
+            # Mise à jour de l'historique
+            self.emotion_history[key].append(value)
+    
+    def _update_energy_plot(self, system_data):
+        """Mise à jour du graphique d'énergie"""
+        vitality = system_data['energy_state']['vitality']
+        self.energy_history.append(vitality)
+        
+        # Mise à jour de la ligne
+        x_data = range(len(self.energy_history))
+        self.energy_line.set_data(x_data, list(self.energy_history))
+        
+        # Mise à jour du fill
+        self.ax_energy.collections.clear()
+        self.ax_energy.fill_between(x_data, 0, list(self.energy_history), 
+                                    color='#FF6B6B', alpha=0.3)
+    
+    def _update_resonance_plot(self, system_data):
+        """Mise à jour du plot de résonance"""
+        resonance = system_data['resonance']
+        self.resonance_history.append(resonance)
+        
+        # Mise à jour du cercle de résonance
+        radius = 0.1 + resonance * 0.2
+        self.resonance_circle.set_radius(radius)
+        
+        # Mise à jour de l'alpha
+        alpha = 0.3 + resonance * 0.5
+        self.resonance_circle.set_alpha(alpha)
+        
+        # Points quantiques
+        n_points = 20
+        angles = np.linspace(0, 2*np.pi, n_points)
+        radii = 0.1 + 0.2 * np.random.random(n_points)
+        points_x = 0.5 + radii * np.cos(angles)
+        points_y = 0.5 + radii * np.sin(angles)
+        colors = np.random.random(n_points)
+        
+        self.quantum_dots.set_offsets(np.column_stack([points_x, points_y]))
+        self.quantum_dots.set_array(colors)
+    
+    def _update_texts(self, system_data):
+        """Mise à jour des textes"""
+        # Texte narratif
+        self.narrative_text.set_text(system_data['narrative'])
+        
+        # Texte de debug
+        stage = system_data['dev_state']['stage'].upper()
+        vitality = int(system_data['energy_state']['vitality'] * 100)
+        resonance = int(system_data['resonance'] * 100)
+        activity = int(system_data['activity'] * 100)
+        
+        debug_info = (
+            f"STADE: {stage} | XP: {system_data['dev_state']['xp']:.0f}\n"
+            f"VITALITÉ: {vitality}% | RÉSONANCE: {resonance}%\n"
+            f"ACTIVITÉ: {activity}% | TEMPS: {system_data['time']:.1f}s\n"
+            f"INPUT: ({ix}, {iy})"
+        )
+        self.debug_text.set_text(debug_info)
+    
+    def run(self):
+        """Lance l'animation"""
+        anim = FuncAnimation(
+            self.fig, 
+            self.update, 
+            interval=30,  # ~33 FPS
+            blit=True,
+            cache_frame_data=False
+        )
+        
+        # Instructions
+        print("\n" + "="*60)
+        print("RĀHIRI 2.0 - INSTRUCTIONS")
+        print("="*60)
+        print("• Utilisez les FLÈCHES pour influencer le système")
+        print("• L'être cyber-organique réagit à votre présence")
+        print("• Observez l'évolution des émotions et de l'énergie")
+        print("• La résonance quantique mesure votre connexion")
+        print("="*60 + "\n")
+        
+        plt.show()
+
+# ================================================================
+# 5. POINT D'ENTRÉE PRINCIPAL
+# ================================================================
+
+def main():
+    """Fonction principale"""
+    print("\n" + "="*60)
+    print("RĀHIRI 2.0 - Système d'Être Visuel Cyber-Organique")
+    print("Version Finale - Tous systèmes intégrés")
+    print("="*60)
+    
+    try:
+        # Vérification des dépendances
+        import torch
+        import numpy as np
+        import matplotlib
+        
+        print("[SYSTÈME] Dépendances vérifiées:")
+        print(f"  • PyTorch: {torch.__version__}")
+        print(f"  • NumPy: {np.__version__}")
+        print(f"  • Matplotlib: {matplotlib.__version__}")
+        
+        # Initialisation
+        print("\n[INITIALISATION] Création de l'être cyber-organique...")
+        engine = RahiriEngine()
+        
+        print("[VISUALISATION] Préparation de l'interface...")
+        visualizer = Visualizer(engine)
+        
+        print("\n[LANCEMENT] Démarrage de la simulation...")
+        visualizer.run()
+        
+    except ImportError as e:
+        print(f"\n[ERREUR] Dépendance manquante: {e}")
+        print("Installez les dépendances avec: pip install torch numpy matplotlib")
+        return 1
+    except KeyboardInterrupt:
+        print("\n[SYSTÈME] Simulation interrompue par l'utilisateur.")
+        return 0
+    except Exception as e:
+        print(f"\n[ERREUR] Une erreur est survenue: {e}")
+        import traceback
+        traceback.print_exc()
+        return 1
+    
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
